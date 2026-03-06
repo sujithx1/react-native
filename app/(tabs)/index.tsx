@@ -11,11 +11,11 @@ export default function Index() {
       <Text style={
         styles.text
       }>Home Screen .</Text>
-    <Link href='/about' style={styles.button}>
+    <Link href='/tabs/sujith' style={styles.button}>
     About Section
     
     </Link>
-    <Link href="/sujith" style={styles.button}
+    <Link href="/tabs/sujith" style={styles.button}
     >
       click to sujithrr
     </Link>
