@@ -1,7 +1,8 @@
+import Ionicons from "@expo/vector-icons/Ionicons"
 import { Image } from "expo-image"
-import { router, useNavigation } from "expo-router"
+import { router, Stack, useNavigation } from "expo-router"
 import { useEffect, useState } from "react"
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
+import { ActivityIndicator, FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native"
 
 interface Pokemon{
     name:string,
@@ -36,18 +37,29 @@ const ColorType={
     steel:'#b8b8d0',
     flying:'#a890f0'
 }
+
+const LIMIT=5
 const pokemon = () => {
       const [data,setData]=useState<Pokemon[]>([])
       const navigate=useNavigation()
+  const [showSearch, setShowSearch] = useState(false);
+  const [query, setQuery] = useState("");
+  const [page,setPage]=useState(0)
+const [loading,setLoading]=useState(false)
 
   useEffect(()=>{
-    fetchdata()
-
+if(!query)fetchdata(page)
   }
-  ,[])
+  ,[page])
 
-  const  fetchdata=async()=>{
-    const res=await fetch('https://pokeapi.co/api/v2/pokemon/?limit=20')
+  const  fetchdata=async(page:number)=>{
+    try {
+        
+        setLoading(true)
+  
+    const offset= page*LIMIT
+    const res=await fetch(`https://pokeapi.co/api/v2/pokemon/?limit=${LIMIT}&offset=${offset}`)
+    
     const data=await res.json()
 
     const detailsPokiemon=await Promise.all(
@@ -70,10 +82,96 @@ const pokemon = () => {
 
     )
 
-    setData(detailsPokiemon)
+      setData((prev) => [...prev, ...detailsPokiemon]);
+
+    } catch (error) {
+        console.log(error)
+    }
+    finally{
+       setLoading(false)
+    }
   }
+
+
+  const searchPokemons=async(name:string)=>{
+    if(!name)return
+    try {
+        setLoading(true)
+        const searchquery=name.trim().toLowerCase()
+    const res=await fetch(`https://pokeapi.co/api/v2/pokemon/${searchquery}`)
+    console.log('res',res)
+    const data=await res.json()
+
+console.log('dataa',data)
+
+    const detailsPokiemon={
+        name:data.name,
+        url:data.sprites.front_default,
+        imageBack:data.sprites.back_default,
+        types:data.types
+    }
+    setData([detailsPokiemon])
+    
+    } catch (error) {
+        console.log(error)
+    }
+    finally{
+        setLoading(false)
+    }
+  }
+
+  
+  useEffect(()=>{
+    if(query){
+        console.log('query',query)
+        searchPokemons(query)
+    }
+    else{
+        setData([])
+        setPage(0)
+        fetchdata(0)
+    }
+  },[query])
   return (
    <>
+       <Stack.Screen
+        options={{
+             headerTitle: () =>
+            showSearch ? (
+              <TextInput
+                placeholder="Search Pokémon..."
+                value={query}
+                onChangeText={(text) => {
+                    console.log(text)
+                  setQuery(text);
+                }}
+                autoFocus
+                style={{
+                  backgroundColor: "#eee",
+                  padding: 6,
+                  borderRadius: 8,
+                  width: 200,
+                }}
+              />
+            ) : (
+              <Text style={{ fontWeight: "bold"  ,color:'#fff', fontSize: 20}}>Pokémon</Text>
+            ),
+          headerRight: () => (
+             <Pressable onPress={() => setShowSearch(!showSearch)}>
+              <Ionicons
+                name={showSearch ? "close" : "search"}
+                size={24}
+                color="#fff"
+              />
+            </Pressable>
+          ),
+          
+        }}
+      />
+
+      <FlatList data={data} keyExtractor={(item,index)=>index.toString()}
+       renderItem={({ item ,index}) => (
+     
    <ScrollView 
 contentContainerStyle={{
 
@@ -82,11 +180,7 @@ contentContainerStyle={{
     padding:16
 }}   
    >
-
-    {
-     
-      data.map((item,index)=>(
-        <Pressable key={item.name} 
+          <Pressable key={index} 
   onPress={() => router.push({pathname:'/details',params:{name:item.name}})}
         style={
             {
@@ -112,12 +206,23 @@ contentContainerStyle={{
 
         </View>
                 </Pressable>
-      ))
-    
-    }
 
 
-   </ScrollView>
+                   </ScrollView>
+
+
+
+        )}
+          onEndReached={() => {
+          if (!query) setPage((p) => p + 1);
+        }}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={
+          loading ? <ActivityIndicator style={{ margin: 20 }} /> : null
+        }
+      />
+
+   
    </>
   )
 }
